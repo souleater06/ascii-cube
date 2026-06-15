@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>LEET GAME · 酸性故障甜甜圈</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(circle at 30% 10%, #0a0c12, #010101);
+            min-height: 100vh;
+            font-family: 'Courier New', 'Fira Code', 'JetBrains Mono', 'Source Code Pro', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* 扫描线 + 故障光晕 */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 0, 0.025) 0px,
+                rgba(255, 0, 255, 0.025) 2px,
+                transparent 3px,
+                transparent 8px
+            );
+            pointer-events: none;
+            z-index: 999;
+            animation: scanShift 6s linear infinite;
+        }
+
+        @keyframes scanShift {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 24px; }
+        }
+
+        /* 主容器 */
+        .glitch-container {
+            max-width: 1400px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(2px);
+            border: 2px solid #0ff;
+            border-radius: 32px;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.4), inset 0 0 10px rgba(255, 0, 255, 0.3);
+            padding: 24px 28px;
+            transition: all 0.2s;
+            animation: borderGlow 2.5s infinite alternate;
+        }
+
+        @keyframes borderGlow {
+            0% { border-color: #0ff; box-shadow: 0 0 8px #0ff, inset 0 0 4px #f0f; }
+            100% { border-color: #f0f; box-shadow: 0 0 28px #f0f, inset 0 0 16px #0ff; }
+        }
+
+        /* LEET GAME ASCII 区域 — 绝对自适应等宽字体 */
+        .leet-header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: #000000aa;
+            border-radius: 28px;
+            padding: 20px 10px;
+            border: 1px solid #0ff;
+            box-shadow: 0 0 12px #00ffff33;
+        }
+
+        pre {
+            font-family: 'Courier New', 'Fira Code', 'JetBrains Mono', 'Source Code Pro', monospace;
+            font-size: clamp(10px, 2.8vw, 18px);
+            line-height: 1.2;
+            background: transparent;
+            color: #0fefef;
+            text-shadow: 0 0 5px #0ff, 0 0 1px #f0f;
+            margin: 0;
+            white-space: pre;
+            overflow-x: auto;
+            letter-spacing: 0.5px;
+        }
+
+        .leet-pre {
+            display: inline-block;
+            text-align: left;
+            width: auto;
+            margin: 0 auto;
+        }
+
+        /* 故障闪烁辅助 */
+        .glitch-text {
+            animation: glitchPulse 3s infinite;
+        }
+
+        @keyframes glitchPulse {
+            0%, 100% { opacity: 1; text-shadow: 2px 0 red, -2px 0 blue; }
+            92% { opacity: 0.95; text-shadow: -1px 0 cyan, 1px 0 magenta; }
+            96% { transform: skew(0.5deg); }
+        }
+
+        /* 双列布局: 甜甜圈 + 看门狗面板 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            margin-bottom: 30px;
+        }
+
+        /* 甜甜圈盒子 */
+        .donut-panel {
+            background: #03050ae6;
+            border-radius: 24px;
+            padding: 18px 12px;
+            border: 1px solid #0f0;
+            box-shadow: 0 0 15px #0f0 inset, 0 8px 20px rgba(0,255,0,0.1);
+            transition: 0.2s;
+        }
+
+        .donut-panel:hover {
+            box-shadow: 0 0 20px #ff00cc, inset 0 0 8px #0f0;
+            transform: scale(1.01);
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ff66ff;
+            text-shadow: 0 0 5px magenta;
+            margin-bottom: 18px;
+            letter-spacing: 3px;
+        }
+
+        #donutCanvas {
+            background: #010101;
+            border-radius: 16px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.15;
+            overflow-x: auto;
+            white-space: pre;
+            padding: 8px;
+        }
+
+        /* 右侧看门狗故障面板 */
+        .watchdog-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-card {
+            background: #0a0f1ae6;
+            border-left: 8px solid #0ff;
+            border-radius: 20px;
+            padding: 18px;
+            backdrop-filter: blur(4px);
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            color: #8affc0;
+            font-size: 0.85rem;
+        }
+
+        .progress {
+            background: #1c1f2c;
+            border-radius: 20px;
+            height: 10px;
+            width: 60%;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 71%;
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            box-shadow: 0 0 6px cyan;
+        }
+
+        /* 故障日志 */
+        .error-log {
+            background: #000000cc;
+            border-radius: 20px;
+            border: 1px solid #ff44cc;
+            padding: 12px;
+            height: 260px;
+            overflow-y: auto;
+        }
+
+        .log-title {
+            color: #ff5588;
+            font-size: 1.1rem;
+            border-left: 4px solid #f0f;
+            padding-left: 10px;
+            margin-bottom: 12px;
+        }
+
+        .log-entries {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 6px;
+            font-size: 11px;
+        }
+
+        .log-entry {
+            border-bottom: 1px solid #3a2a3a;
+            padding: 4px 0;
+            color: #ffb86b;
+            word-break: break-word;
+        }
+
+        .log-entry.error {
+            color: #ff4d6d;
+            text-shadow: 0 0 2px red;
+        }
+
+        .log-entry.warn {
+            color: #ffdd88;
+        }
+
+        /* 按钮区 */
+        .action-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .acid-btn {
+            background: black;
+            border: 2px solid #0ff;
+            color: #0ff;
+            font-family: monospace;
+            font-weight: bold;
+            padding: 8px 28px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.8rem;
+        }
+
+        .acid-btn:hover {
+            background: #0ff;
+            color: black;
+            box-shadow: 0 0 20px #0ff;
+            transform: scale(1.02);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px dashed #0ff;
+            color: #77ff77;
+            font-size: 0.7rem;
+        }
+
+        @media (max-width: 850px) {
+            .dashboard { grid-template-columns: 1fr; }
+            pre { font-size: 9px; }
+            .glitch-container { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="glitch-container">
+    <!-- LEET GAME ASCII 标题 (完美对齐) -->
+    <div class="leet-header">
+        <pre class="leet-pre" style="display: inline-block; text-align: left;">
+ ██╗     ███████╗███████╗████████╗      ██████╗  █████╗ ███╗   ███╗███████╗
+ ██║     ██╔════╝██╔════╝╚══██╔══╝     ██╔════╝ ██╔══██╗████╗ ████║██╔════╝
+ ██║     █████╗  █████╗     ██║        ██║  ███╗███████║██╔████╔██║█████╗  
+ ██║     ██╔══╝  ██╔══╝     ██║        ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  
+ ███████╗███████╗███████╗   ██║        ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗
+ ╚══════╝╚══════╝╚══════╝   ╚═╝         ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝
+        </pre>
+        <div style="color:#0ffaa0; font-size:0.75rem; margin-top: 10px;">✦ 酸性故障协议 · 看门狗超频 ✦</div>
+    </div>
+
+    <div class="dashboard">
+        <!-- 甜甜圈区域 -->
+        <div class="donut-panel">
+            <div class="section-title">🍩 3D ASCII DONUT 🍩</div>
+            <pre id="donutOutput" style="background:#010101; padding:12px; border-radius: 16px; font-size:12px; line-height:1.2; color: #4eff4e;">  Loading donut core...</pre>
+            <div style="text-align:center; margin-top: 10px; color: #0ff; font-size: 11px;">[ 旋转甜甜圈 | 故障环面 ]</div>
+        </div>
+
+        <!-- 右侧看门狗+故障日志 -->
+        <div class="watchdog-panel">
+            <div class="status-card">
+                <div class="status-row"><span>🔻 WATCHDOG v.4.2.0</span><span>🔴 入侵模式</span></div>
+                <div class="status-row"><span>🌀 甜甜圈熵值</span><div class="progress"><div id="entropyFill" class="progress-fill" style="width: 52%;"></div></div><span id="entropyVal">52%</span></div>
+                <div class="status-row"><span>⚡ 故障渗透率</span><div class="progress"><div id="glitchFill" class="progress-fill" style="width: 63%; background: linear-gradient(90deg,#f0f,#0ff);"></div></div><span id="glitchPercent">63%</span></div>
+                <div class="status-row"><span>🛡️ LEET 加密隧道</span><span>ACTIVE</span></div>
+            </div>
+
+            <div class="error-log">
+                <div class="log-title">💢 动态故障码日志 💢</div>
+                <div id="logEntries" class="log-entries">
+                    <div class="log-entry">[INIT] LEET GAME 核心唤醒 | 甜甜圈渲染器在线</div>
+                    <div class="log-entry error">[!] 检测到看门狗越权访问 0x5F3A_CC</div>
+                    <div class="log-entry warn">[>] 酸性格子注入中 ...</div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="acid-btn" id="glitchBtn">💀 注入故障 💀</button>
+                <button class="acid-btn" id="randomLogBtn">🌀 随机故障码</button>
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        <span>LEET GAME  •  GLITCH MODE  •  酸性甜甜圈永续旋转</span>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- ASCII 甜甜圈核心 (经典旋转环面) ----------
+        const donutOut = document.getElementById('donutOutput');
+        let A = 0, B = 0;
+        let animFrame;
+
+        function renderDonut() {
+            const w = 80;
+            const h = 24;
+            let b = new Array(w * h).fill(' ');
+            let z = new Array(w * h).fill(0);
+            
+            for (let j = 0; j < Math.PI * 2; j += 0.07) {      // theta 环角度
+                for (let i = 0; i < Math.PI * 2; i += 0.02) {  // phi 截面圆
+                    let c = Math.sin(i);
+                    let d = Math.cos(j);
+                    let e = Math.sin(A);
+                    let f = Math.sin(j);
+                    let g = Math.cos(A);
+                    let h_ = d + 2;
+                    let D = 1 / (c * h_ * e + f * g + 5);
+                    let l = Math.cos(i);
+                    let m = Math.cos(B);
+                    let n = Math.sin(B);
+                    let t = c * h_ * g - f * e;
+                    let x = Math.floor(40 + 30 * D * (l * h_ * m - t * n));
+                    let y = Math.floor(12 + 15 * D * (l * h_ * n + t * m));
+                    let idx = x + w * y;
+                    let N = Math.floor(8 * ((f * e - c * d * g) * m - c * d * e - f * g - l * d * n));
+                    if (y >= 0 && y < h && x >= 0 && x < w && D > z[idx]) {
+                        z[idx] = D;
+                        const chars = ".,-~:;=!*#$@";
+                        b[idx] = chars[N > 0 ? N % chars.length : 0];
+                    }
+                }
+            }
+            
+            let out = '';
+            for (let k = 0; k < w * h; k++) {
+                out += b[k];
+                if ((k + 1) % w === 0 && k !== w*h-1) out += '\n';
+            }
+            donutOut.innerText = out;
+            
+            A += 0.04;
+            B += 0.02;
+            
+            // 更新熵值 (基于旋转角度) 影响看门狗条
+            const entropy = 30 + Math.sin(A) * 35;
+            const entVal = Math.floor(entropy);
+            const entropyFill = document.getElementById('entropyFill');
+            const entropySpan = document.getElementById('entropyVal');
+            if(entropyFill) {
+                entropyFill.style.width = entVal + '%';
+                if(entropySpan) entropySpan.innerText = entVal + '%';
+            }
+            animFrame = requestAnimationFrame(renderDonut);
+        }
+        
+        renderDonut();
+
+        // ---------- 故障日志系统 ----------
+        const logContainer = document.getElementById('logEntries');
+        const faultPool = [
+            { type: "error", text: "[KERNEL] 段错误: 甜甜圈缓冲区溢出 0xDEADBEEF" },
+            { type: "warn", text: "[WATCHDOG] 非法内存访问 | 环形撕裂警告" },
+            { type: "error", text: "[CRITICAL] LEET 引擎执行故障 #FA77" },
+            { type: "", text: "[GLITCH] 显存异常: 甜甜圈切面丢失" },
+            { type: "error", text: "[!] ACID 风暴注入: 看门狗计数器重置" },
+            { type: "warn", text: "⚠️ 甜甜圈旋转同步丢失, 重新校准" },
+            { type: "", text: "[SYS] 故障偏移 +0x3F, 噪点层活跃" },
+            { type: "error", text: "[SEGV] 看门狗陷阱触发 · 恶意封包" },
+            { type: "warn", text: "[LEET] 加密隧道波动: 重新协商中" },
+            { type: "error", text: "!!! 甜甜圈内核恐慌 : 3D 环面崩溃 !!!" },
+            { type: "", text: "[INFO] 酸性扫描线同步故障, 视觉干扰生效" }
+        ];
+
+        function addLogEntry(message, typeClass = "") {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${typeClass}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerText = `[${timestamp}] ${message}`;
+            logContainer.prepend(entry);
+            // 限制日志数量
+            while(logContainer.children.length > 28) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+            entry.style.animation = 'fadeIn 0.2s';
+        }
+
+        function addRandomFault() {
+            const rand = Math.floor(Math.random() * faultPool.length);
+            const fault = faultPool[rand];
+            addLogEntry(fault.text, fault.type);
+            
+            // 更新故障渗透进度条 (随机增减)
+            const glitchFill = document.getElementById('glitchFill');
+            const glitchSpan = document.getElementById('glitchPercent');
+            if(glitchFill) {
+                let cur = parseFloat(glitchFill.style.width) || 63;
+                let newVal = Math.min(98, Math.max(28, cur + (Math.random() * 10 - 3)));
+                glitchFill.style.width = newVal + '%';
+                if(glitchSpan) glitchSpan.innerText = Math.floor(newVal) + '%';
+                // 颜色随渗透率变化
+                if(newVal > 75) glitchFill.style.background = "linear-gradient(90deg, #ff0066, #ff44ee)";
+                else glitchFill.style.background = "linear-gradient(90deg, #0ff, #f0f)";
+            }
+            
+            // 让甜甜圈区域闪烁故障反馈
+            const donutPanel = document.querySelector('.donut-panel');
+            if(donutPanel) {
+                donutPanel.style.filter = 'brightness(1.2) hue-rotate(12deg)';
+                setTimeout(() => { if(donutPanel) donutPanel.style.filter = ''; }, 100);
+            }
+        }
+
+        // 批量重度故障注入（看门狗风格）
+        function heavyGlitch() {
+            addRandomFault();
+            setTimeout(() => addRandomFault(), 60);
+            setTimeout(() => addRandomFault(), 150);
+            // 闪屏故障效果
+            const container = document.querySelector('.glitch-container');
+            container.classList.add('global-glitch-effect');
+            setTimeout(() => container.classList.remove('global-glitch-effect'), 400);
+            
+            // 额外修改LEET header闪烁
+            const headerPre = document.querySelector('.leet-pre');
+            if(headerPre) {
+                headerPre.style.textShadow = '0 0 8px red, 0 0 12px magenta';
+                setTimeout(() => headerPre.style.textShadow = '', 300);
+            }
+        }
+        
+        // 注入自定义随机故障批量
+        function multiRandom() {
+            addRandomFault();
+            setTimeout(() => addRandomFault(), 80);
+            const logTitle = document.querySelector('.log-title');
+            if(logTitle) {
+                logTitle.style.transform = 'skew(1deg)';
+                setTimeout(() => logTitle.style.transform = '', 150);
+            }
+        }
+        
+        // 按钮绑定
+        document.getElementById('glitchBtn')?.addEventListener('click', heavyGlitch);
+        document.getElementById('randomLogBtn')?.addEventListener('click', multiRandom);
+        
+        // 周期性自动故障 (每5~9秒)
+        let autoInterval = setInterval(() => {
+            addRandomFault();
+        }, 6800);
+        
+        // 页面启动额外欢迎故障
+        setTimeout(() => {
+            addLogEntry("[SYSTEM] LEET GAME 故障外壳已装载 | 甜甜圈守护进程启动", "");
+            addLogEntry("[WATCHDOG] 看门狗超驰模式: 格子系统溢出", "warn");
+        }, 500);
+        
+        // 全局故障闪光动画类
+        const style = document.createElement('style');
+        style.textContent = `
+            .global-glitch-effect {
+                animation: globalGlitcher 0.2s cubic-bezier(0.2, 1.2, 0.5, 1) 2;
+            }
+            @keyframes globalGlitcher {
+                0% { transform: translate(0); filter: hue-rotate(0deg);}
+                25% { transform: translate(-2px, 1px); filter: hue-rotate(30deg);}
+                50% { transform: translate(2px, -1px); filter: hue-rotate(60deg);}
+                75% { transform: translate(0, 2px); filter: hue-rotate(30deg);}
+                100% { transform: translate(0); filter: hue-rotate(0deg);}
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateX(12px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // 清理定时器 (可选)
+        window.addEventListener('beforeunload', () => {
+            if(autoInterval) clearInterval(autoInterval);
+            if(animFrame) cancelAnimationFrame(animFrame);
+        });
+        
+        // 甜甜圈熵值动态匹配
+        function updateEntropyFromDonut() {
+            // 已经在 renderDonut 里做了，这里确保额外同步即可
+        }
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes" />
+  <title>Ω// LeetGame 黑核协议</title>
+  <style>
+    :root {
+      --bg: #030508;
+      --panel: rgba(6, 12, 16, 0.88);
+      --panel2: rgba(9, 18, 22, 0.94);
+      --line: rgba(87, 242, 141, 0.18);
+      --text: #d8ffe9;
+      --muted: #7fb89e;
+      --accent: #57f28d;
+      --accent2: #00d7ff;
+      --danger: #ff6b7a;
+      --warn: #ffd166;
+      --shadow: 0 0 30px rgba(0, 255, 160, 0.10), inset 0 0 0 1px rgba(120, 255, 200, 0.08);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Fira Code", monospace;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(0, 215, 255, 0.12), transparent 26%),
+        radial-gradient(circle at 80% 0%, rgba(87, 242, 141, 0.12), transparent 25%),
+        linear-gradient(180deg, #020407 0%, #04070b 45%, #020304 100%);
+    }
+    body::before, body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    body::before {
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.01) 1px, transparent 3px, transparent 5px);
+      mix-blend-mode: screen;
+      opacity: 0.16;
+    }
+    body::after {
+      background: linear-gradient(90deg, transparent, rgba(87,242,141,0.05), transparent);
+      animation: scan 8s linear infinite;
+      opacity: 0.45;
+    }
+    @keyframes scan { from { transform: translateY(-30%); } to { transform: translateY(30%); } }
+
+    .app {
+      width: min(1260px, calc(100vw - 24px));
+      height: min(920px, calc(100vh - 24px));
+      margin: 12px auto;
+      border: 1px solid rgba(87, 242, 141, 0.22);
+      background: linear-gradient(180deg, rgba(2, 4, 6, 0.98), rgba(4, 8, 11, 0.96));
+      box-shadow: 0 30px 80px rgba(0,0,0,0.55), var(--shadow);
+      position: relative;
+      overflow: auto;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .screen {
+      position: relative;
+      z-index: 5;
+      background: #000;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      transition: opacity .45s ease, transform .45s ease, filter .45s ease, max-height .45s ease, margin .45s ease, padding .45s ease;
+      cursor: pointer;
+      max-height: 340px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(87,242,141,0.16);
+    }
+    .screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      max-height: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      transform: translateY(-12px);
+      filter: blur(6px) brightness(1.2);
+      overflow: hidden;
+    }
+    .screen.booting::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(87,242,141,0.16), transparent 30%), linear-gradient(135deg, transparent 30%, rgba(0,215,255,0.10) 50%, transparent 70%);
+      mix-blend-mode: screen;
+      animation: bootFlash .6s ease-out 1;
+      pointer-events: none;
+    }
+    @keyframes bootFlash { from { opacity: 1; } to { opacity: 0; } }
+    .screen-core {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      min-height: 260px;
+    }
+    .screen-core iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      pointer-events: none;
+      display: block;
+      min-height: 260px;
+    }
+    .boot-donut {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      color: #57f28d;
+      white-space: pre;
+      line-height: 1;
+      font-size: clamp(7px, 0.95vw, 14px);
+      text-shadow: 0 0 12px rgba(87,242,141,0.18);
+      user-select: none;
+      transform-origin: center center;
+      will-change: transform, opacity, letter-spacing, filter;
+      display: grid;
+      place-items: center;
+    }
+    .boot-donut.entering { animation: donutIn 1.25s steps(16, end) forwards; }
+    @keyframes donutIn {
+      0% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0px); }
+      25% { transform: scale(1.12) rotate(-1deg); opacity: 1; filter: blur(0px); }
+      55% { transform: scale(1.42) rotate(1deg); opacity: .98; filter: blur(0.08px); }
+      82% { transform: scale(1.95) rotate(0deg); opacity: .9; filter: blur(0.28px); }
+      100% { transform: scale(2.8) rotate(0deg); opacity: 0; filter: blur(1px); }
+    }
+    .boot-stream {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      color: #57f28d;
+      white-space: pre;
+      line-height: 1.05;
+      font-size: clamp(8px, 1vw, 14px);
+      letter-spacing: 0.06em;
+      text-shadow: 0 0 12px rgba(87,242,141,0.18);
+      user-select: none;
+      transform-origin: center center;
+      will-change: transform, opacity, letter-spacing, filter;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+    }
+    .boot-stream.visible { opacity: 1; }
+    .boot-stream.entering { animation: streamIn 1.25s steps(16, end) forwards; }
+    @keyframes donutIn {
+      0% { transform: scale(1) rotate(0deg); opacity: 1; filter: blur(0px); }
+      35% { transform: scale(1.12) rotate(-1deg); opacity: 1; filter: blur(0px); }
+      70% { transform: scale(1.55) rotate(1deg); opacity: .95; filter: blur(0.1px); }
+      100% { transform: scale(1.95) rotate(0deg); opacity: 0; filter: blur(0.5px); }
+    }
+    @keyframes streamIn {
+      0% { transform: translate3d(0,0,0); letter-spacing: 0.04em; opacity: 0; filter: blur(0px); }
+      12% { opacity: 1; }
+      28% { transform: translate3d(0,-4px,0); letter-spacing: 0.08em; opacity: 1; filter: blur(0px); }
+      52% { transform: translate3d(0,-12px,0); letter-spacing: 0.18em; opacity: .98; filter: blur(0.06px); }
+      76% { transform: translate3d(0,-24px,0); letter-spacing: 0.30em; opacity: .80; filter: blur(0.16px); }
+      100% { transform: translate3d(0,-42px,0); letter-spacing: 0.48em; opacity: 0; filter: blur(0.55px); }
+    }
+    .boot-stream .glyph { display:inline-block; min-width: 1ch; }
+    .boot-hint {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      padding: 6px 10px;
+      border: 1px solid rgba(87,242,141,0.22);
+      background: rgba(0,0,0,0.72);
+      color: #57f28d;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      font-size: 11px;
+      text-shadow: 0 0 8px rgba(87,242,141,0.2);
+      user-select: none;
+    }
+    .boot-hint.hidden { opacity: 0; transition: opacity .2s ease; }
+    .screen-bar {
+      padding: 10px 14px;
+      border-top: 1px solid rgba(87,242,141,0.14);
+      background: rgba(3, 8, 10, 0.94);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .screen-bar .left { color: var(--muted); }
+    .screen-bar .right { color: var(--accent); }
+
+    .hud {
+      padding: 14px 14px 0;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(0,215,255,0.06), rgba(87,242,141,0.03));
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+    .brand { display: flex; flex-direction: column; gap: 8px; }
+    .symbol-ribbon {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      color: rgba(87,242,141,0.92);
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      font-size: 11px;
+    }
+    .symbol-ribbon span { opacity: .88; }
+    .symbol-ribbon .mark { color: #00d7ff; }
+    .symbol-ribbon .slash { color: var(--warn); }
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 48px);
+      line-height: 1;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-shadow: 0 0 18px rgba(87,242,141,0.35);
+    }
+    .glitch { position: relative; display: inline-block; }
+    .glitch::before, .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      opacity: .7;
+      pointer-events: none;
+    }
+    .glitch::before { transform: translate(1px,0); color: var(--accent2); }
+    .glitch::after { transform: translate(-1px,0); color: var(--danger); }
+    .brand .sub { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .chip {
+      padding: 12px 14px;
+      border: 1px solid rgba(87,242,141,0.16);
+      background: rgba(2, 7, 9, 0.88);
+      box-shadow: var(--shadow);
+      min-height: 62px;
+    }
+    .chip .label { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+    .chip .value { margin-top: 6px; font-size: 15px; color: var(--text); }
+
+    .main {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 16px;
+      padding: 12px 16px 16px;
+      min-height: 0;
+      flex: 1;
+      align-items: start;
+    }
+    .panel {
+      border: 1px solid rgba(87,242,141,0.18);
+      background: rgba(5, 8, 12, 0.94);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .panel-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(87,242,141,0.16);
+      color: var(--accent);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-size: 12px;
+      background: rgba(2, 7, 9, 0.86);
+    }
+    .panel-body {
+      padding: 14px 16px 16px;
+      height: calc(100% - 43px);
+      overflow: auto;
+    }
+    .field { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .field input, .field textarea, .answer-input {
+      width: 100%;
+      border: 1px solid rgba(87,242,141,0.16);
+      outline: none;
+      color: var(--text);
+      background: rgba(2, 7, 9, 0.92);
+      padding: 12px 13px;
+      font: inherit;
+    }
+    .field textarea { min-height: 124px; resize: vertical; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid rgba(87,242,141,0.2);
+      background: linear-gradient(180deg, rgba(8, 18, 16, 0.96), rgba(3, 9, 8, 0.96));
+      color: var(--accent);
+      padding: 11px 14px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      font: inherit;
+      transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 0 22px rgba(87,242,141,0.18); border-color: rgba(87,242,141,0.4); }
+    .btn.secondary { color: #95e6ff; border-color: rgba(0,215,255,0.2); }
+    .btn.warn { color: var(--warn); border-color: rgba(255,209,102,0.25); }
+    .btn.danger { color: var(--danger); border-color: rgba(255,107,122,0.25); }
+    .divider { height: 1px; background: var(--line); margin: 12px 0; }
+    .small { font-size: 12px; color: var(--muted); line-height: 1.75; }
+
+    .portal-wrap {
+      margin: 6px 0 14px;
+      border: 1px solid rgba(87,242,141,0.12);
+      background: rgba(2, 7, 9, 0.86);
+      padding: 12px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+    .portal {
+      font-size: clamp(8px, 1vw, 12px);
+      line-height: 1;
+      white-space: pre;
+      color: rgba(87,242,141,0.95);
+      text-shadow: 0 0 10px rgba(87,242,141,0.18);
+      transform-origin: center;
+      user-select: none;
+      animation: portalWobble 5s ease-in-out infinite;
+    }
+    @keyframes portalWobble { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-1px) scale(1.01); } }
+    .tower { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .node {
+      position: relative;
+      min-height: 82px;
+      border: 1px solid rgba(87,242,141,0.16);
+      background: rgba(5, 10, 14, 0.86);
+      color: var(--muted);
+      display: flex;
+      align-items: end;
+      justify-content: center;
+      padding: 10px 6px;
+      overflow: hidden;
+    }
+    .node.active { color: var(--accent); box-shadow: 0 0 20px rgba(87,242,141,0.2); }
+    .node.done { color: #9df9c3; background: rgba(6, 20, 13, 0.92); }
+    .node::after { content: ""; position: absolute; inset: auto 0 0 0; height: var(--h); background: linear-gradient(180deg, rgba(87,242,141,0.0), rgba(87,242,141,0.14)); pointer-events: none; }
+    .node span { position: relative; z-index: 1; font-size: 12px; letter-spacing: 0.08em; }
+    .story, .log, .quest, .lore {
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      padding: 14px 15px;
+      box-shadow: var(--shadow);
+    }
+    .story { margin-bottom: 14px; color: #c9f6dd; line-height: 1.72; }
+    .log { margin-top: 14px; color: #94c8b0; min-height: 116px; white-space: pre-wrap; }
+    .question-card {
+      position: sticky;
+      top: 12px;
+      background: rgba(3, 6, 9, 0.98);
+      border: 1px solid rgba(87,242,141,0.22);
+      box-shadow: 0 0 32px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(87,242,141,0.06);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .prompt-label {
+      color: var(--warn);
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .terminal-line { color: #95e6ff; font-size: 12px; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .quest-title { font-size: 20px; margin: 0 0 8px; color: var(--accent); letter-spacing: 0.04em; }
+    .meta { color: var(--muted); font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
+    .options { display: grid; gap: 10px; margin: 14px 0; }
+    .opt {
+      border: 1px solid rgba(87,242,141,0.14);
+      background: rgba(4,10,13,0.88);
+      padding: 14px 14px;
+      cursor: pointer;
+      transition: .15s ease;
+      color: var(--text);
+      line-height: 1.55;
+      border-radius: 10px;
+    }
+    .opt:hover { border-color: rgba(87,242,141,0.32); background: rgba(7,16,17,0.96); }
+    .opt.sel { border-color: rgba(87,242,141,0.55); box-shadow: 0 0 18px rgba(87,242,141,0.18); }
+    .opt.disabled { opacity: 0.34; text-decoration: line-through; pointer-events: none; }
+    .answer-input { font-size: 16px; margin: 10px 0 0; width: 100%; border-radius: 10px; }
+    .opt:hover { border-color: rgba(87,242,141,0.32); background: rgba(7,16,17,0.96); }
+    .opt.sel { border-color: rgba(87,242,141,0.55); box-shadow: 0 0 18px rgba(87,242,141,0.18); }
+    .opt.disabled { opacity: 0.34; text-decoration: line-through; pointer-events: none; }
+    .answer-input { font-size: 16px; margin: 10px 0 0; }
+    .feedback { margin-top: 12px; padding: 12px 13px; border: 1px solid rgba(87,242,141,0.14); background: rgba(4,10,13,0.86); min-height: 48px; white-space: pre-wrap; }
+    .ok { color: #9df9c3; }
+    .bad { color: #ff9cab; }
+    .hint { color: #95e6ff; }
+    .tagline { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .tag { padding: 5px 9px; border: 1px solid rgba(87,242,141,0.16); color: var(--accent); background: rgba(5,12,10,0.88); font-size: 11px; letter-spacing: 0.08em; }
+    .boot-footer { color: var(--muted); font-size: 11px; margin-top: 8px; }
+    .boot-actions { display:flex; gap: 10px; flex-wrap:wrap; margin-top: 12px; }
+
+    @media (max-width: 960px) {
+      body { overflow: auto; }
+      .app { width: calc(100vw - 16px); height: auto; min-height: calc(100vh - 16px); }
+      .topbar, .main { grid-template-columns: 1fr; }
+      .tower { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .screen { grid-template-rows: 1fr auto; }
+    }
+    @media (max-width: 560px) {
+      body { padding: 8px; }
+      .app { width: calc(100vw - 16px); margin: 8px auto; }
+      .main { padding: 10px; }
+      .tower { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .status-grid, .row-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="screen" id="bootScreen" title="点击进入黑核协议">
+      <div class="screen-core">
+        <iframe src="index.html" aria-label="donut portal"></iframe>
+      </div>
+      <div class="screen-bar">
+        <div class="left">ASCII portal / click or press Enter</div>
+        <div class="right">Ω ENTRY / portal armed</div>
+      </div>
+    </div>
+
+    <div class="hud">
+      <div class="topbar">
+        <div class="brand">
+          <div class="symbol-ribbon">
+            <span>watch</span><span class="slash">//</span><span class="mark">dogs</span>
+            <span>acid</span><span class="slash">//</span><span class="mark">glitch</span>
+          </div>
+          <h1 class="glitch" data-text="Ω// LEETGAME">Ω// LEETGAME</h1>
+          <div class="sub" id="missionText">黑核协议已启用。你不再攀塔，而是潜入 LeetCode 克隆站的随机题流，在最少熵增的前提下完成每一轮淬火。</div>
+        </div>
+        <div class="status-grid">
+          <div class="chip"><div class="label">SYSTEM</div><div class="value" id="sysState">WAITING FOR INPUT</div></div>
+          <div class="chip"><div class="label">Ω / ENTROPY</div><div class="value" id="entropyValue">0.42</div></div>
+          <div class="chip"><div class="label">MOMENTUM</div><div class="value" id="momentumValue">100%</div></div>
+          <div class="chip"><div class="label">SEED</div><div class="value" id="seedValue">---</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" style="padding: 0 16px; margin: 12px 0 0;">
+      <div class="row-2">
+        <input id="seedInput" placeholder='种子 / JSON，比如 {"seed":123}' />
+        <button class="btn secondary" id="loadSeedBtn">Load Seed</button>
+      </div>
+      <div class="toolbar" style="margin-top:10px;">
+        <button class="btn" id="copySeedBtn">Copy Seed</button>
+        <button class="btn secondary" id="newRunBtn">New Run</button>
+        <button class="btn secondary" id="exportBtn">Export Bank</button>
+      </div>
+      <textarea id="customBankInput" placeholder='自定义题库 JSON。格式：{"easy":[...],"medium":[...],"hard":[...]}'></textarea>
+      <button class="btn secondary" id="loadBankBtn">Load Custom Bank</button>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panel-head">Control Deck</div>
+        <div class="panel-body">
+          <div class="field">
+            <div class="row-2">
+              <input id="seedInput" placeholder='种子 / JSON，比如 {"seed":123}' />
+              <button class="btn secondary" id="loadSeedBtn">Load Seed</button>
+            </div>
+            <div class="toolbar">
+              <button class="btn" id="copySeedBtn">Copy Seed</button>
+              <button class="btn secondary" id="newRunBtn">New Run</button>
+              <button class="btn secondary" id="exportBtn">Export Bank</button>
+            </div>
+          </div>
+          <div class="field">
+            <textarea id="customBankInput" placeholder='自定义题库 JSON。格式：{"easy":[...],"medium":[...],"hard":[...]}'></textarea>
+            <button class="btn secondary" id="loadBankBtn">Load Custom Bank</button>
+          </div>
+          <div class="divider"></div>
+          <div class="small">
+            规则压缩版：<br />
+            1) 每轮随机抽题，分类是 `easy / medium / hard`。<br />
+            2) 支持单选、多选、填空。<br />
+            3) 题干尽量贴近 LeetCode：数组、字符串、链表、树、DP、图、系统设计。<br />
+            4) 背景故事采用 Ω 语言，整体风格偏 Watch Dogs 的文字黑客风。
+          </div>
+          <div class="divider"></div>
+          <div class="small" id="bootLore"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">Raid Map</div>
+        <div class="panel-body">
+          <div class="story" id="story"></div>
+          <div class="question-card">
+            <div class="terminal-line">&gt; task.inject --mode=leetcode --raids=1</div>
+            <div class="terminal-line">&gt; wait_for_prompt</div>
+            <div class="prompt-label">PROMPT</div>
+            <div class="terminal-line" id="questionPrelude">&gt; inject question</div>
+            <h2 class="quest-title" id="questionTitle"></h2>
+            <div class="meta" id="questionMeta"></div>
+            <div id="questionBody"></div>
+            <div class="feedback" id="feedback">等待注入任务。</div>
+          </div>
+          <div class="toolbar" style="margin-top:12px;">
+              <button class="btn" id="submitBtn">Submit</button>
+              <button class="btn secondary" id="nextBtn" disabled>Next Node</button>
+              <button class="btn warn" id="hintBtn">Hint</button>
+          </div>
+          <div class="lore" style="margin-top:14px;">
+            <div class="panel-head" style="margin:-14px -15px 14px;">Background / Ω Dossier</div>
+            <div id="loreBox"></div>
+            <div class="tagline" id="tags"></div>
+          </div>
+          <div class="log" id="logBox"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const DEFAULT_BANK = {
+        easy: [
+          { type:'single', category:'array', question:'给定数组 nums，哪种做法最符合「先压缩再处理」？', options:['双重 for 暴力枚举','先排序再双指针','复制数组后逐项删除','把所有状态写进字符串'], correct:1, explanation:'双指针通常能降低状态空间，符合低熵原则。', hint:'寻找可单调推进的边界。', tags:['array','two pointers'] },
+          { type:'single', category:'string', question:'要判断两个字符串是否为变位词，最稳妥的思路是？', options:['直接比较地址','计数统计字符频率','随机打乱一个字符串','逐字符使用全局变量'], correct:1, explanation:'频率计数是典型的压缩表示。', hint:'把字符串映射成频次向量。', tags:['string','hash'] },
+          { type:'single', category:'stack', question:'括号匹配最自然的数据结构是？', options:['队列','栈','集合','链表'], correct:1, explanation:'LIFO 正好对齐最近未闭合的左括号。', hint:'最近出现的，最先被解决。', tags:['stack','simulation'] },
+          { type:'fill', category:'math', question:'补全 Python：判断偶数通常写成 n % 2 == ______', answer:'0', explanation:'把 parity 压缩成一个比特。', hint:'余数为零。', tags:['math'] },
+          { type:'single', category:'complexity', question:'二分查找的时间复杂度是？', options:['O(n)','O(log n)','O(n log n)','O(1)'], correct:1, explanation:'每次将搜索空间对半折叠。', hint:'对数是折叠的影子。', tags:['binary search'] },
+          { type:'single', category:'linked list', question:'要反转单链表，常用的核心变量是？', options:['prev / cur / next','left / right / mid','top / bottom','row / col / depth'], correct:0, explanation:'三指针是链表反转的经典模板。', hint:'保留下一跳，逐步扭转指向。', tags:['linked list'] },
+          { type:'fill', category:'python', question:'Python 中表示空值的关键字是 ______', answer:'None', explanation:'空值是显式状态，不要用沉默代替。', hint:'首字母大写。', tags:['python'] },
+          { type:'single', category:'tree', question:'二叉树的中序遍历顺序是？', options:['根-左-右','左-根-右','左-右-根','根-右-左'], correct:1, explanation:'中序遍历最适合二叉搜索树的有序输出。', hint:'左边先走，再回到根。', tags:['tree','dfs'] }
+        ],
+        medium: [
+          { type:'single', category:'dp', question:'动态规划的本质更接近哪种思维？', options:['随机试错','状态压缩与最优子结构','排序后暴力','直接背答案'], correct:1, explanation:'DP 是在可控状态空间里做确定性转移。', hint:'把问题拆成状态和转移。', tags:['dp'] },
+          { type:'single', category:'graph', question:'BFS 最适合求什么？', options:['最短路径（无权图）','拓扑排序唯一实现','最长回文子串','最小生成树'], correct:0, explanation:'无权图中 BFS 按层扩张，天然给出最短步数。', hint:'按层推进。', tags:['graph','bfs'] },
+          { type:'fill', category:'recursion', question:'递归函数必须具备 ______ 条件，避免无限递归。', answer:'base', explanation:'早停是递归的锚点。', hint:'英文常见表达。', tags:['recursion'] },
+          { type:'multi', category:'design', question:'以下哪些能减少非法状态空间？', options:['枚举代替字符串状态','让函数同时做 5 件事','不可变数据','显式边界处理'], correct:[0,2,3], explanation:'让非法状态不可表达，是最强压缩。', hint:'不是越自由越好，而是越可验证越好。', tags:['design','entropy'] },
+          { type:'single', category:'hash', question:'判断数组中是否存在重复元素，常见的 O(n) 思路是？', options:['冒泡排序','哈希集合','线性扫描每一对','递归分治'], correct:1, explanation:'集合让存在性查询接近 O(1)。', hint:'把已见过的元素记下来。', tags:['hash'] },
+          { type:'single', category:'interval', question:'合并区间前，最重要的预处理通常是？', options:['对区间排序','随机打乱区间','删除所有端点','将区间转成字符串'], correct:0, explanation:'排序把混乱压缩成可扫描的顺序。', hint:'先按左端点排。', tags:['interval'] },
+          { type:'fill', category:'python', question:'Python 切片 lst[::-1] 的作用是 ______ 列表。', answer:'反转', explanation:'切片是低成本的结构变换。', hint:'两个汉字。', tags:['python'] },
+          { type:'single', category:'queue', question:'实现滑动窗口时，哪种结构最常见？', options:['栈','单调队列','集合','堆排序'], correct:1, explanation:'单调队列能维持窗口极值。', hint:'队列里还要保持单调性。', tags:['queue','window'] }
+        ],
+        hard: [
+          { type:'single', category:'system design', question:'设计高并发抢购系统，最先考虑的防线是？', options:['增加页面动效','限流与缓存预热','把数据库字段改成更长','每次请求都同步写日志'], correct:1, explanation:'先控制洪峰，再谈扩容。', hint:'先挡住流量尖峰。', tags:['design','scalability'] },
+          { type:'single', category:'graph', question:'拓扑排序适用于哪类图？', options:['有向无环图','有向有环图','无向图','任意图都可以'], correct:0, explanation:'DAG 才有线性依赖序。', hint:'必须无环。', tags:['graph','topo'] },
+          { type:'fill', category:'math', question:'Git bisect 利用的是 ______ 查找。', answer:'二分', explanation:'时间轴也可以被折叠。', hint:'两个字。', tags:['debugging'] },
+          { type:'single', category:'dp', question:'背包问题中，滚动数组的核心目的是？', options:['减少空间复杂度','提高硬件频率','让答案更随机','避免使用循环'], correct:0, explanation:'把二维状态压缩到一维。', hint:'空间压缩。', tags:['dp','optimization'] },
+          { type:'multi', category:'architecture', question:'以下哪些属于良好的工程边界？', options:['纯函数','显式错误返回','循环依赖','超时与降级'], correct:[0,1,3], explanation:'边界清晰会让系统更可预测。', hint:'把外部世界挡在门外。', tags:['architecture','boundary'] },
+          { type:'single', category:'tree', question:'要在 BST 中快速找最小值，最直接的方法是？', options:['一路向左','一路向右','按层遍历','后序遍历'], correct:0, explanation:'BST 的最小值在最左边。', hint:'往左到底。', tags:['tree','bst'] },
+          { type:'fill', category:'python', question:'Python 里判断一个对象是否为空常用的显式比较值是 ______', answer:'None', explanation:'显式优先于隐式。', hint:'复用空值语义。', tags:['python','design'] },
+          { type:'single', category:'debugging', question:'“15 分钟无头绪则改变策略”更接近什么原则？', options:['early stopping','late binding','busy waiting','garbage collection'], correct:0, explanation:'早停防止认知陷入局部极小。', hint:'及时切换探针。', tags:['debugging'] }
+        ]
+      };
+
+      let bank = JSON.parse(JSON.stringify(DEFAULT_BANK));
+      let rng = mulberry32(Date.now() >>> 0);
+      let seed = 0, momentum = 100, entropy = 0.42, runIndex = 0, completed = false;
+      let selected = [], current = null, currentDifficulty = 'easy', history = [];
+      let portalTick = 0;
+      let booted = false;
+
+      function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+      function hashString(str) { let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h) + str.charCodeAt(i); return h >>> 0; }
+      function randInt(n) { return Math.floor(rng() * n); }
+      function shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+      function pick(list) { return list[randInt(list.length)]; }
+      function setSeed(v) { seed = v >>> 0; rng = mulberry32(seed || 1); }
+      function buildRunSeed(raw) {
+        if (raw == null || raw === '') return (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+        if (/^\d+$/.test(raw)) return parseInt(raw, 10) >>> 0;
+        try { const obj = JSON.parse(raw); if (obj && obj.seed != null) return parseInt(obj.seed, 10) >>> 0; } catch (e) {}
+        return hashString(String(raw));
+      }
+      function chooseDifficulty() { const roll = rng(); if (runIndex < 2) return 'easy'; if (roll < 0.45) return 'easy'; if (roll < 0.8) return 'medium'; return 'hard'; }
+      function selectQuestion() {
+        currentDifficulty = chooseDifficulty();
+        const pool = bank[currentDifficulty] || [];
+        if (!pool.length) return { type:'fill', category:'fallback', question:'题库为空。请输入自定义题库 JSON 后重新开始。', answer:'ok', explanation:'系统已降级。', hint:'补充题库。', tags:['fallback'] };
+        const q = JSON.parse(JSON.stringify(pick(pool)));
+        if (q.type === 'multi') {
+          q.options = shuffle(q.options);
+          const original = bank[currentDifficulty].find(x => x.question === q.question) || q;
+          const mapping = q.options.map(opt => original.options.indexOf(opt));
+          q.correct = original.correct.map(idx => mapping.indexOf(idx)).filter(idx => idx >= 0);
+        } else if (q.type === 'single') {
+          q.options = shuffle(q.options);
+          const original = bank[currentDifficulty].find(x => x.question === q.question) || q;
+          q.correct = q.options.findIndex(opt => original.options[original.correct] === opt);
+        }
+        return q;
+      }
+
+      function loreText() {
+        return [
+          '你不是在刷题，而是在对抗一座由状态机、边界条件和遗留耦合砌成的虚构城市。',
+          '每一道题都是一次黑入：你把高维混乱压缩成一个确定的答案，再用它解锁下一层协议。',
+          'Ω 语言把认知事件切成四种动作：observe / compress / quench / torque。',
+          '你的职责不是解释世界，而是把它降维到可执行。',
+          'Grace Hopper、Pascal、Hofstadter 的影子都在这台机器里。',
+          '最终目标不是漂亮，而是低熵。'
+        ].join('<p>');
+      }
+      function bootLoreText() {
+        return [
+          'Ω 入口协议：先观察，不干预；先压缩，再扭转。',
+          'Entropy 是可被削弱的混乱，Momentum 是你手里的纯净扭力。',
+          '当问题开始扩散，先把它坍缩成最小的问题束，再交给代码推平。',
+          'debugging 是分诊，不是追逐；15 分钟无头绪就切换探针。'
+        ].join(' | ');
+      }
+      function updateTower() {
+        const el = document.getElementById('tower'); el.innerHTML = '';
+        for (let i = 0; i < 7; i++) {
+          const node = document.createElement('div');
+          node.className = 'node' + (i < runIndex ? ' done' : i === runIndex ? ' active' : '');
+          node.style.setProperty('--h', `${15 + i * 8}%`);
+          node.innerHTML = `<span>NODE ${String(i + 1).padStart(2, '0')}</span>`;
+          el.appendChild(node);
+        }
+      }
+      function renderPortal() {
+        const el = document.getElementById('portal'); if (!el) return;
+        const chars = '.,-~:;=!*#$@'; const width = 34, height = 16; const out = Array(width * height).fill(' '); const z = Array(width * height).fill(0);
+        const A = portalTick * 0.07, B = portalTick * 0.03;
+        for (let j = 0; j < 6.28; j += 0.25) {
+          for (let i = 0; i < 6.28; i += 0.08) {
+            const c = Math.sin(i), l = Math.cos(j), d = Math.sin(A) * Math.sin(j) * 1.5 + Math.cos(A) * l + 4.8;
+            const t = c * l * Math.sin(A) - Math.sin(B) * Math.cos(A) * l + Math.cos(B) * Math.sin(j) + 0.35;
+            const x = Math.floor(width / 2 + 14 * d * (Math.cos(B) * Math.cos(i) + Math.sin(B) * t));
+            const y = Math.floor(height / 2 + 7 * d * (Math.sin(B) * Math.cos(i) - Math.cos(B) * t));
+            const o = x + width * y; const n = Math.floor(8 * ((Math.sin(j) * Math.sin(A) - Math.sin(i) * Math.cos(A) * Math.cos(j))));
+            if (y >= 0 && y < height && x >= 0 && x < width && d > z[o]) { z[o] = d; out[o] = chars[Math.max(0, n) % chars.length]; }
+          }
+        }
+        el.innerHTML = Array.from({length: height}, (_, y) => out.slice(y * width, (y + 1) * width).join('')).join('<br>');
+        portalTick++;
+      }
+      function updateHUD() {
+        document.getElementById('seedValue').textContent = seed;
+        document.getElementById('momentumValue').textContent = momentum + '%';
+        document.getElementById('entropyValue').textContent = entropy.toFixed(2);
+        document.getElementById('sysState').textContent = completed ? 'CONTRACT STABLE' : `RAID ${runIndex + 1}/7`;
+        document.getElementById('tags').innerHTML = (current?.tags || ['leetcode','omega']).map(t => `<span class="tag">${t}</span>`).join('');
+        renderPortal(); updateTower();
+      }
+      function log(line) { history.unshift(`[${new Date().toLocaleTimeString()}] ${line}`); history = history.slice(0, 8); document.getElementById('logBox').textContent = history.join('\n\n'); }
+      function setStory(text) { document.getElementById('story').innerHTML = `<strong>Ω DOSSIER</strong><div class="divider"></div>${text}`; }
+      function buildStory() {
+        const phase = currentDifficulty === 'easy' ? '进入低熵区。这里的任务像 LeetCode 的入口关卡：明确、短促、可计算。' : currentDifficulty === 'medium' ? '你已经穿过表层网关。中层题目开始逼迫你压缩状态与边界。' : '核心区暴露在你面前。此处不是解题，而是对系统边界进行一次无声的扭转。';
+        return `<p>${phase}</p><p>本轮任务哲学：先抽象压缩，再瞬间扭转问题。你的目标不是漂亮，而是确定。</p><p>Ω 提示：observe / compress / quench / torque。</p>`;
+      }
+      function renderQuestion() {
+        current = selectQuestion(); selected = []; completed = false; document.getElementById('nextBtn').disabled = true; document.getElementById('feedback').textContent = 'trace: task injected, awaiting answer';
+        document.getElementById('questionPrelude').textContent = `> prompt ${currentDifficulty}.${current.type}`;
+        document.getElementById('questionTitle').textContent = current.question;
+        document.getElementById('questionMeta').textContent = `round=${runIndex + 1} • layer=${currentLayer}/${TOTAL_LAYERS} • category=${current.category} • seed=${seed}`;
+        const body = document.getElementById('questionBody');
+        if (current.type === 'single' || current.type === 'multi') {
+          body.innerHTML = `<div class="terminal-line">> options</div><div class="options" id="optionsBox">${current.options.map((o, i) => `<div class="opt" data-i="${i}">${String.fromCharCode(65 + i)}. ${o}</div>`).join('')}</div>`;
+          document.querySelectorAll('.opt').forEach(el => {
+            el.addEventListener('click', () => {
+              const idx = parseInt(el.dataset.i, 10);
+              if (current.type === 'single') { selected = [idx]; document.querySelectorAll('.opt').forEach(x => x.classList.remove('sel')); el.classList.add('sel'); }
+              else { if (selected.includes(idx)) { selected = selected.filter(x => x !== idx); el.classList.remove('sel'); } else { selected.push(idx); el.classList.add('sel'); } }
+            });
+          });
+        } else {
+          body.innerHTML = `<div class="terminal-line">> fill_answer</div><input class="answer-input" id="fillInput" placeholder="输入答案..." autocomplete="off" />`;
+        }
+        document.getElementById('loreBox').innerHTML = loreText(); setStory(buildStory()); updateHUD();
+      }
+      function evaluate() {
+        if (completed) return; let ok = false;
+        if (current.type === 'single') ok = selected.length === 1 && selected[0] === current.correct;
+        else if (current.type === 'multi') ok = [...selected].sort((a,b)=>a-b).join(',') === [...current.correct].sort((a,b)=>a-b).join(',');
+        else ok = (document.getElementById('fillInput')?.value || '').trim().toLowerCase() === String(current.answer).toLowerCase();
+        if (ok) {
+          completed = true; entropy = Math.max(0.03, entropy - 0.04);
+          document.getElementById('feedback').innerHTML = `trace: PASS // ${current.explanation}`;
+          document.getElementById('nextBtn').disabled = false;
+          log(`PASS ${runIndex + 1}: ${current.question}`);
+          setStory(`<p>节点已通过。${current.explanation}</p><p>Ω 协议继续扩展：你正在把噪声压缩成下一层通道的钥匙。</p>`);
+          updateHUD();
+        } else {
+          momentum = Math.max(0, momentum - 15); entropy = Math.min(1, entropy + 0.05);
+          document.getElementById('feedback').innerHTML = `trace: FAIL // ${current.hint ? current.hint : '请重新审视边界。'}`;
+          log(`FAIL ${runIndex + 1}: entropy ↑ / momentum ↓`);
+          if (momentum <= 0) { document.getElementById('feedback').innerHTML = 'trace: SYSTEM CRASH // momentum depleted'; document.getElementById('nextBtn').disabled = true; }
+          updateHUD();
+        }
+      }
+      function nextNode() {
+        if (!completed) return; runIndex++;
+        if (runIndex >= 7) {
+          document.getElementById('questionTitle').textContent = 'CONTRACT COMPLETE';
+          document.getElementById('questionMeta').textContent = '你已经把这座克隆站的随机题流压成可控的确定性。';
+          document.getElementById('questionBody').innerHTML = '<div class="feedback">trace: COMPLETE // system stabilized</div>';
+          document.getElementById('nextBtn').disabled = true; document.getElementById('submitBtn').disabled = true;
+          setStory('<p>终局不是胜利，而是让系统不再需要你的介入。此刻，熵被压到最低，协议平静运行。</p><p>你已经完成 Ω 协议的一轮降熵。</p>'); updateHUD(); return;
+        }
+        renderQuestion();
+      }
+      function hint() { if (!current) return; document.getElementById('feedback').innerHTML = `trace: HINT // ${current.hint || '观察输入与目标的状态差异。'}`; }
+      function startGame(rawSeed) {
+        momentum = 100; entropy = 0.42; runIndex = 0; completed = false; history = []; setSeed(rawSeed ?? Date.now());
+        document.getElementById('submitBtn').disabled = false; document.getElementById('nextBtn').disabled = true; renderQuestion(); updateHUD(); log(`BOOT seed=${seed}`); log('Ω protocol initialized. 黑核界面已激活。');
+      }
+      function loadSeedFromInput() {
+        const raw = document.getElementById('seedInput').value.trim(); if (!raw) return startGame(); startGame(buildRunSeed(raw));
+      }
+      function loadCustomBank() {
+        const raw = document.getElementById('customBankInput').value.trim(); if (!raw) return alert('请粘贴题库 JSON');
+        try { const obj = JSON.parse(raw); if (!obj.easy && !obj.medium && !obj.hard) throw new Error('需要包含 easy / medium / hard 任意字段'); bank = { easy: Array.isArray(obj.easy) ? obj.easy : [], medium: Array.isArray(obj.medium) ? obj.medium : [], hard: Array.isArray(obj.hard) ? obj.hard : [] }; alert('自定义题库已加载，重新开始生效。'); startGame(seed); }
+        catch (e) { alert('JSON 解析失败：' + e.message); }
+      }
+      function exportBank() { const blob = new Blob([JSON.stringify(bank, null, 2)], { type:'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'leetgame-bank.json'; a.click(); URL.revokeObjectURL(url); }
+      function copySeed() { navigator.clipboard.writeText(String(seed)).then(() => alert('种子已复制')); }
+      const BOOT_DONUT = [
+        '             i,j,k,x,y,o,N;',
+        '         main(){float z[1760],a',
+        '      #define R(t,x,y) f=x;x-=t*y\\',
+        '   ;y+=t*f;f=(3-x*x-y*y)/2;x*=f;y*=f;',
+        '   =0,e=1,c=1,d=0,f,g,h,G,H,A,t,D;char',
+        ' b[1760];for(;;){memset(b,32,1760);g=0,',
+        'h=1;memset(z,0,7040);for(j=0;j<90;j++){',
+        'G=0,H=1;for(i=0;i<314;i++){A=h+2,D=1/(G*',
+        'A*a+g*e+5);t=G*A        *e-g*a;x=40+30*D',
+        '*(H*A*d-t*c);y=          12+15*D*(H*A*c+',
+        't*d);o=x+80*y;N          =8*((g*a-G*h*e)',
+        '*d-G*h*a-g*e-H*h        *c);if(22>y&&y>',
+        ' 0&&x>0&&80>x&&D>z[o]){z[o]=D;b[o]=(N>0',
+        '  ?N:0)[".,-~:;=!*#$@"];}R(.02,H,G);}R(',
+        '  .07,h,g);}for(k=0;1761>k;k++)putchar',
+        '   (k%80?b[k]:10);R(.04,e,a);R(.02,d,',
+        '     c);usleep(15000);printf(\'\\n\'+(',
+        '        " donut.c! \\x1b[23A"));}}',
+        '          /*no math lib needed',
+        '             .@a1k0n 2021.*/'
+      ];
+      const BOOT_STREAM = [
+        'ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω ω',
+        'compress // observe // quench // torque // attune',
+        'entropy down / momentum up / certainty locked / boundary visible',
+        'state space collapsing... illegal states removed...',
+        'enter through the text stream to the cloned leetcode relay'
+      ];
+      function renderBootDonut(progress) {
+        const el = document.getElementById('bootDonut');
+        if (!el) return;
+        const visible = Math.max(1, Math.ceil(BOOT_DONUT.length * (1 - progress * 0.35)));
+        el.innerHTML = BOOT_DONUT.slice(0, visible).join('\n');
+      }
+      function renderBootStream(progress) {
+        const el = document.getElementById('bootStream');
+        if (!el) return;
+        const text = BOOT_STREAM.join(' ').replace(/\s+/g, ' ').trim();
+        const count = Math.max(0, Math.floor(text.length * progress));
+        let i = 0;
+        let out = '';
+        for (const ch of text) {
+          out += `<span class="glyph">${i++ < count ? (ch === ' ' ? '&nbsp;' : ch) : '&nbsp;'}</span>`;
+          if (i % 52 === 0) out += '<br>';
+        }
+        el.innerHTML = out;
+      }
+      function animateBootStream() {
+        const stream = document.getElementById('bootStream');
+        const donut = document.getElementById('bootDonut');
+        const hint = document.getElementById('bootHint');
+        if (!stream || !donut || !hint) return;
+        hint.classList.add('hidden');
+        donut.classList.add('entering');
+        stream.classList.add('visible');
+        stream.classList.add('entering');
+        const start = performance.now();
+        const frame = (now) => {
+          const t = Math.min(1, (now - start) / 1250);
+          renderBootDonut(t);
+          renderBootStream(t);
+          stream.style.transform = `translate3d(0, ${Math.round(-t * 38)}px, 0) scale(${1 + t * 0.55})`;
+          stream.style.letterSpacing = `${0.04 + t * 0.38}em`;
+          if (t < 1) requestAnimationFrame(frame);
+          else {
+            stream.classList.remove('entering');
+            donut.classList.remove('entering');
+          }
+        };
+        requestAnimationFrame(frame);
+      }
+      function initBoot() {
+        document.getElementById('bootLore').innerHTML = bootLoreText();
+        document.getElementById('story').innerHTML = '<strong>Ω DOSSIER</strong><div class="divider"></div><p>等待入口解锁。Ω 协议静默运行。</p>';
+        document.getElementById('loreBox').innerHTML = loreText();
+        renderBootDonut(0);
+        renderBootStream(0.08);
+        updateTower();
+        updateHUD();
+        startGame();
+        document.getElementById('bootScreen').classList.remove('hidden');
+        document.getElementById('bootScreen').style.display = 'grid';
+      }
+
+      document.getElementById('submitBtn').addEventListener('click', evaluate);
+      document.getElementById('nextBtn').addEventListener('click', nextNode);
+      document.getElementById('hintBtn').addEventListener('click', hint);
+      document.getElementById('loadSeedBtn').addEventListener('click', loadSeedFromInput);
+      document.getElementById('newRunBtn').addEventListener('click', () => startGame());
+      document.getElementById('loadBankBtn').addEventListener('click', loadCustomBank);
+      document.getElementById('exportBtn').addEventListener('click', exportBank);
+      document.getElementById('copySeedBtn').addEventListener('click', copySeed);
+      function enterPortal() {
+        const screen = document.getElementById('bootScreen');
+        if (screen.classList.contains('booting')) return;
+        screen.classList.add('booting');
+        const hint = document.getElementById('bootHint');
+        if (hint) hint.classList.add('hidden');
+        animateBootStream();
+        setTimeout(() => {
+          screen.classList.add('hidden');
+          screen.style.display = 'none';
+          booted = true;
+        }, 1320);
+      }
+      document.getElementById('bootScreen').addEventListener('click', enterPortal);
+      document.querySelector('.screen-core')?.addEventListener('click', enterPortal);
+      window.addEventListener('message', (e) => {
+        if (e?.data?.type === 'donut-enter') enterPortal();
+      });
+      window.addEventListener('keydown', (e) => {
+        if (!booted && e.key === 'Enter') {
+          enterPortal();
+          return;
+        }
+        if (e.key === 'Enter' && !document.getElementById('bootScreen').classList.contains('hidden')) {
+          enterPortal();
+          return;
+        }
+        if (e.key === 'Enter' && document.activeElement?.id !== 'customBankInput') {
+          if (!completed) evaluate(); else nextNode();
+        }
+      });
+      setInterval(() => { renderPortal(); bootPortal(); }, 70);
+      initBoot();
+    })();
+  </script>
+</body>
+</html>
